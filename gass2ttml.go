@@ -2,7 +2,6 @@ package main
 
 import (
 	"os"
-	"bufio"
 	"strings"
 	"fmt"
 	"strconv"
@@ -10,6 +9,7 @@ import (
 	"regexp"
 	"flag"
 	"io/ioutil"
+	"github.com/wargarblgarbl/libgosubs/readass"
 )
 
 
@@ -24,8 +24,6 @@ var framerate = flag.String("frame", "24", "default framerate")
 
 /* Various things to marshal our XML at the end */
 var subtitles []*subtitle
-var styles []*style
-var regions []*region
 
 type tt struct {
 		Xmlns string `xml:"xmlns,attr"`
@@ -103,19 +101,12 @@ func setopts (v *tt) {
 /* set remaining head options */
 func sethead (v *tt){
 	style := createstyle("s1", "center", "Arial", "100%")
-	styles = append(styles, style)
-	
+	v.Head.Styling.Style = append(v.Head.Styling.Style, *style)
 	region1 := createregion("bottom", "after", "80% 40%", "10% 50%")
-	regions = append(regions, region1)
-
 	region2 := createregion("top", "before", "80% 40%", "10% 10%")
-	regions = append(regions, region2)
-	for _, a := range styles {
-		v.Head.Styling.Style = append(v.Head.Styling.Style, *a)
-	}
-	for _, b := range regions {
-		v.Head.Layout.Region = append(v.Head.Layout.Region, *b)
-	}
+	v.Head.Styling.Style = append(v.Head.Styling.Style, *style)
+	v.Head.Layout.Region = append(v.Head.Layout.Region, *region1)
+	v.Head.Layout.Region = append(v.Head.Layout.Region, *region2)
 
 }
 
@@ -129,6 +120,8 @@ func setdefaults (v *tt) {
 
 func setsubtitles (v *tt) {
 	loadass()
+	//Only reason to do this atm is because ass does not have a subtitle ID.
+	//Potentially change this in the future. 
 	for z, i := range subtitles {
 		i.Id =  "subtitle"+strconv.Itoa(z+1)
 		v.Body.Div.P = append(v.Body.Div.P, *i)
@@ -213,46 +206,25 @@ func timeproc (input string)(output string) {
 	
 }
 
-	
-func procass (input string) {
-	output := strings.Split(input, ",")
-	var dialogue string
-	if len(output) > 10 {
-		dialogue = strings.Join(output[9:], ",")
-		
-	} else {
-		dialogue = strings.Join(output[9:], "")
-	}
-	region := tagproc(dialogue)
-//	dialogue = stripedit(dialogue)
-	dialogue = striptags(dialogue)
-	starttime := timeproc(output[1])
-	endtime := timeproc(output[2])
-	
-	if dialogue != "" {
-		z := createline(starttime, endtime, region, dialogue)
-		subtitles = append(subtitles, z)
-	}
-}
-
-
 
 func loadass() {
 	fmt.Println(os.Args)
 	fmt.Println(len(os.Args))	
-	
-	f, err := os.Open(inpath)
-	if err != nil {
-		fmt.Println("Cannot read file")
-		os.Exit(1)
-	}
-	scanner := bufio.NewScanner(f)
-	for scanner.Scan() {
-		if strings.HasPrefix(scanner.Text(), "Dialogue:") {
-			procass(scanner.Text())
+	loadedass := readass.ParseAss(inpath)
+	for _, i := range loadedass.Events.Body {
+		if i.Format == "Dialogue" {
+			region := tagproc(i.Text)
+			//dialogue = stripedit(dialogue)
+			dialogue := striptags(i.Text)
+			starttime := timeproc(i.Start)
+			endtime := timeproc(i.End)
+			if dialogue != "" {
+				z := createline(starttime, endtime, region, dialogue)
+				subtitles = append(subtitles, z)
+			}
 		}
-	
 	}
+
 }
 
 
@@ -294,6 +266,5 @@ func main () {
 		panic(trr)
 	}
 }
-	
 	
 
