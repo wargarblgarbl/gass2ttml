@@ -5,11 +5,12 @@ import (
 	"strings"
 	"fmt"
 	"strconv"
-	"encoding/xml"
+//	"encoding/xml"
 	"regexp"
 	"flag"
-	"io/ioutil"
-	"github.com/wargarblgarbl/libgosubs/readass"
+//	"io/ioutil"
+	"github.com/wargarblgarbl/libgosubs/ass"
+	"github.com/wargarblgarbl/libgosubs/ttml"
 )
 
 
@@ -23,64 +24,10 @@ var framerate = flag.String("frame", "24", "default framerate")
 
 
 /* Various things to marshal our XML at the end */
-var subtitles []*subtitle
-
-type tt struct {
-		Xmlns string `xml:"xmlns,attr"`
-		XmlnsTtp string `xml:"xmlns:ttp,attr"`
-		XmlnsTts string `xml:"xmlns:tts,attr"`
-		XmlnsTtm string `xml:"xmlns:ttm,attr"`
-		XmlnsXML string `xml:"xmlns:xml,attr"`
-		TtpTimeBase string `xml:"ttp:timeBase,attr"`
-		TtpFrameRate string `xml:"ttp:frameRate,attr"`
-		XMLLang string `xml:"xml:lang,attr"`
-		Head struct {
-			Metadata struct {
-				TtmTitle string `xml:"ttm:title"`
-			} `xml:"metadata"`
-			Styling struct {
-				Style []style `xml:"style"`
-			} `xml:"styling"`
-			Layout struct {
-				Region []region `xml:"region"`
-			} `xml:"layout"`
-		} `xml:"head"`
-		Body struct {
-			Region string `xml:"region,attr"`
-			Style string `xml:"style,attr"`
-			Div struct {
-				P []subtitle `xml:"p"`
-			} `xml:"div"`
-		} `xml:"body"`
-} 
-
-type region struct {
-	XMLID string `xml:"xml:id,attr"`
-	TtsDisplayAlign string `xml:"tts:displayAlign,attr"`
-	TtsExtent string `xml:"tts:extend,attr"`
-	TtsOrigin string `xml:"tts:origin,attr"`
-	
-}
-
-type style struct {
-	XMLID string `xml:"xml:id,attr"`
-	TtsTextAlign string `xml:"tts:textAlign,attr"`
-	TtsFontFamily string `xml:"tts:fontFamily,attr"`
-	TtsFontSize string `xml:"tts:fontSize,attr"`
-}
-
-
-type subtitle struct {
-	Id string `xml:"xml:id,attr"`
-	Begin string `xml:"begin,attr"`
-	End string `xml:"end,attr"`
-	Style string `xml:"style,attr,omitempty"`
-	Region string `xml:"region,attr,omitempty"`
-	Text string `xml:",innerxml"`
-}
+var subtitles []*ttml.Subtitle
 
 /* set our TTML options here */ 
-func settt (v *tt) {
+func settt (v *ttml.WTt) {
 	v.Xmlns = "http://www.w3.org/ns/ttml"
 	v.XmlnsTtp = "http://www.w3.org/ns/ttml#parameter"
 	v.XmlnsTts = "http://www.w3.org/ns/ttml#styling"
@@ -89,7 +36,7 @@ func settt (v *tt) {
 	v.TtpTimeBase = "media"
 }
 
-func setopts (v *tt) {
+func setopts (v *ttml.WTt) {
 	flag.Parse()
 	/* set options and title */
 	v.XMLLang = *language
@@ -99,7 +46,7 @@ func setopts (v *tt) {
 }
 
 /* set remaining head options */
-func sethead (v *tt){
+func sethead (v *ttml.WTt){
 	style := createstyle("s1", "center", "Arial", "100%")
 	v.Head.Styling.Style = append(v.Head.Styling.Style, *style)
 	region1 := createregion("bottom", "after", "80% 40%", "10% 50%")
@@ -111,14 +58,14 @@ func sethead (v *tt){
 }
 
 /* set script defaults */
-func setdefaults (v *tt) {
+func setdefaults (v *ttml.WTt) {
 	v.Body.Region = "bottom"
 	v.Body.Style = "s1"
 }
 
 
 
-func setsubtitles (v *tt) {
+func setsubtitles (v *ttml.WTt) {
 	loadass()
 	//Only reason to do this atm is because ass does not have a subtitle ID.
 	//Potentially change this in the future. 
@@ -131,8 +78,8 @@ func setsubtitles (v *tt) {
 
 /* Functions to create our objects */
 
-func createline (begin string, end string, region string, text string) *subtitle {
-	return &subtitle {
+func createline (begin string, end string, region string, text string) *ttml.Subtitle {
+	return &ttml.Subtitle {
 		Style : "s1",
 		Begin : begin,
 		End : end,
@@ -142,8 +89,8 @@ func createline (begin string, end string, region string, text string) *subtitle
 
 }
 
-func createregion (id string, align string, extent string, origin string) *region {
-	return & region {
+func createregion (id string, align string, extent string, origin string) *ttml.Region {
+	return &ttml.Region {
 		XMLID : id,
 		TtsDisplayAlign : align,
 		TtsExtent : extent,
@@ -151,8 +98,8 @@ func createregion (id string, align string, extent string, origin string) *regio
 	}
 }
 
-func createstyle (id string, align string, family string, size string) *style{
-	return &style {
+func createstyle (id string, align string, family string, size string) *ttml.Style{
+	return &ttml.Style {
 		XMLID : id,
 		TtsTextAlign : align,
 		TtsFontFamily : family,
@@ -210,7 +157,7 @@ func timeproc (input string)(output string) {
 func loadass() {
 	fmt.Println(os.Args)
 	fmt.Println(len(os.Args))	
-	loadedass := readass.ParseAss(inpath)
+	loadedass := ass.ParseAss(inpath)
 	for _, i := range loadedass.Events.Body {
 		if i.Format == "Dialogue" {
 			region := tagproc(i.Text)
@@ -231,7 +178,7 @@ func loadass() {
 
 
 func main () {
-	v := &tt{}
+	v := &ttml.WTt{}
 	if len(os.Args) > 1  {
 		inpath = os.Args[1]
 	} else {
@@ -248,23 +195,7 @@ func main () {
 	settt(v)
 	setopts(v)
 	sethead(v)
-
-	
-	out, err := xml.MarshalIndent(v, "", "  ")
-	if err != nil {
-		panic(err)
-	}
-	bytehead := []byte(xml.Header)
-	out = append(bytehead, out ...)
-	f, arr := os.Create(outpath)
-	if arr != nil {
-		panic(arr)
-	}
-	defer f.Close()
-	trr := ioutil.WriteFile(outpath, []byte(out), 0666)
-	if trr != nil {
-		panic(trr)
-	}
+	ttml.WriteTtml(v, outpath)
 }
 	
 
