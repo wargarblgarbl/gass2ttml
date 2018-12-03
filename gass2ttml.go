@@ -24,7 +24,9 @@ var framerate = flag.String("frame", "24", "default framerate")
 
 
 /* Various things to marshal our XML at the end */
-var subtitles []*ttml.Subtitle
+var subtitles []*ttml.Wsubtitle
+var styles []*ttml.Wstyle
+//var region []*ttml.Wregion
 
 /* set our TTML options here */ 
 func settt (v *ttml.WTt) {
@@ -47,11 +49,14 @@ func setopts (v *ttml.WTt) {
 
 /* set remaining head options */
 func sethead (v *ttml.WTt){
-	style := createstyle("s1", "center", "Arial", "100%")
-	v.Head.Styling.Style = append(v.Head.Styling.Style, *style)
+	for _, i := range styles {
+		v.Head.Styling.Style = append(v.Head.Styling.Style, *i)
+	}
+	//	style := createstyle("s1", "center", "Arial", "100%")
+//	v.Head.Styling.Style = append(v.Head.Styling.Style, *style)
 	region1 := createregion("bottom", "after", "80% 40%", "10% 50%")
 	region2 := createregion("top", "before", "80% 40%", "10% 10%")
-	v.Head.Styling.Style = append(v.Head.Styling.Style, *style)
+//	v.Head.Styling.Style = append(v.Head.Styling.Style, *style)
 	v.Head.Layout.Region = append(v.Head.Layout.Region, *region1)
 	v.Head.Layout.Region = append(v.Head.Layout.Region, *region2)
 
@@ -78,9 +83,9 @@ func setsubtitles (v *ttml.WTt) {
 
 /* Functions to create our objects */
 
-func createline (begin string, end string, region string, text string) *ttml.Subtitle {
-	return &ttml.Subtitle {
-		Style : "s1",
+func createline (style string, begin string, end string, region string, text string) *ttml.Wsubtitle {
+	return &ttml.Wsubtitle {
+		Style : style,
 		Begin : begin,
 		End : end,
 		Region : region,
@@ -89,8 +94,8 @@ func createline (begin string, end string, region string, text string) *ttml.Sub
 
 }
 
-func createregion (id string, align string, extent string, origin string) *ttml.Region {
-	return &ttml.Region {
+func createregion (id string, align string, extent string, origin string) *ttml.Wregion {
+	return &ttml.Wregion {
 		XMLID : id,
 		TtsDisplayAlign : align,
 		TtsExtent : extent,
@@ -98,8 +103,8 @@ func createregion (id string, align string, extent string, origin string) *ttml.
 	}
 }
 
-func createstyle (id string, align string, family string, size string) *ttml.Style{
-	return &ttml.Style {
+func createstyle (id string, align string, family string, size string) *ttml.Wstyle{
+	return &ttml.Wstyle {
 		XMLID : id,
 		TtsTextAlign : align,
 		TtsFontFamily : family,
@@ -155,21 +160,31 @@ func timeproc (input string)(output string) {
 
 
 func loadass() {
-	fmt.Println(os.Args)
-	fmt.Println(len(os.Args))	
-	loadedass := ass.ParseAss(inpath)
+	loadedass, err := ass.ParseAss(inpath)
+	if err != nil {
+		panic(err)
+	}
 	for _, i := range loadedass.Events.Body {
 		if i.Format == "Dialogue" {
+			style := i.Style 
 			region := tagproc(i.Text)
 			//dialogue = stripedit(dialogue)
 			dialogue := striptags(i.Text)
 			starttime := timeproc(i.Start)
 			endtime := timeproc(i.End)
 			if dialogue != "" {
-				z := createline(starttime, endtime, region, dialogue)
+				z := createline(style, starttime, endtime, region, dialogue)
 				subtitles = append(subtitles, z)
 			}
 		}
+	}
+	for _, y := range loadedass.Styles.Body {
+		id := y.Name
+		family := y.Fontname
+		align := "center"
+		size := "100%"
+		z := createstyle(id,  align, family, size )
+		styles = append(styles, z)
 	}
 
 }
@@ -191,7 +206,7 @@ func main () {
 		outpath = strings.Replace(inpath, "ass", "xml", -1)
 	}
 	setsubtitles(v)
-	setdefaults(v)
+//	setdefaults(v)
 	settt(v)
 	setopts(v)
 	sethead(v)
