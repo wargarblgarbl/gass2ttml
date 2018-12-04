@@ -28,8 +28,8 @@ jobs:
       - run: mv gass2ttml ./artifacts/gass2ttml_darwin
       - run: GOOS=linux GOARCH=amd64 go build gass2ttml.go
       - run: mv gass2ttml ./artifacts/gass2ttml_linux_amd64
-      - run: GOOS=linux GOARCH=i386 go build gass2ttml.go
-      - run: mv gass2ttml ./artifacts/gass2ttml_linux_i386
+     # - run: GOOS=linux GOARCH=i386 go build gass2ttml.go
+     # - run: mv gass2ttml ./artifacts/gass2ttml_linux_i386
       - run: GOOS=windows GOARCH=amd64 go build gass2ttml.go
       - run: mv gass2ttml ./artifacts/gass2ttml_win_amd64.exe
       - run: GOOS=windows GOARCH=i386 go build gass2ttml.go
