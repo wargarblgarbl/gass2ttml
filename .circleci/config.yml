@@ -23,7 +23,16 @@ jobs:
 
       # specify any bash command here prefixed with `run: `
       - run: go get  ./...
+      - run: mkdir artifacts
       - run: GOOS=darwin GOARCH=amd64 go build gass2ttml.go
-      - run: mv gass2ttml gass2ttml_darwin
+      - run: mv gass2ttml ./artifacts/gass2ttml_darwin
       - run: GOOS=linux GOARCH=amd64 go build gass2ttml.go
-      - run: mv gass2ttml gass2ttml_linux_amd64
+      - run: mv gass2ttml ./artifacts/gass2ttml_linux_amd64
+      - run: GOOS=linux GOARCH=i386 go build gass2ttml.go
+      - run: mv gass2ttml ./artifacts/gass2ttml_linux_i386
+      - run: GOOS=windows GOARCH=amd64 go build gass2ttml.go
+      - run: mv gass2ttml ./artifacts/gass2ttml_win_amd64.exe
+      - run: GOOS=windows GOARCH=i386 go build gass2ttml.go
+      - run: mv gass2ttml ./artifacts/gass2ttml_win_i386.exe
+      - run: go get github.com/tcnksm/ghr
+      - run: ghr -t ${GITHUB_TOKEN} -u %{CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} -c ${CIRCLE_SHA1} ./artifacts
