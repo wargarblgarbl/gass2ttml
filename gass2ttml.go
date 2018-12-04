@@ -65,7 +65,7 @@ func sethead (v *ttml.WTt){
 /* set script defaults */
 func setdefaults (v *ttml.WTt) {
 	v.Body.Region = "bottom"
-	v.Body.Style = "s1"
+	v.Body.Style = styles[0].XMLID
 }
 
 
@@ -138,14 +138,52 @@ func stripedit (input string)(output string) {
 }
 
 func tagproc (input string)(region string) {
-	if strings.Contains(input, `\an8`) {
+	switch {
+	case strings.Contains(input, `\an1`):
+		region = "bottom"
+	case strings.Contains(input, `\an2`):
+		region = "bottom"
+	case strings.Contains(input, `\an3`):
+		region = "bottom"
+	case strings.Contains(input, `\an7`):
+		region = "top"
+	case strings.Contains(input, `\an8`):
+		region = "top"
+	case strings.Contains(input, `\an9`):
 		region = "top"
 	}
 	return
 
 }
 
-/* Pad the timestamps, if we're in the multi-hour range, pad only the right hand side. */
+func locproc (input int)(region string) {
+	switch input {
+	case 1:
+		region = "left"
+	case 2:
+		region = "center"
+	case 3:
+		region = "right"
+	case 4:
+		region = "left"
+	case 5:
+		region = "center"
+	case 6:
+		region = "right"
+	case 7:
+		region = "left"
+	case 8:
+		region = "center"
+	case 9:
+		region = "right"
+	default:
+		region = "center"
+		
+	}
+	return
+}
+
+/* Pad the timestamps, if we'`re in the multi-hour range, pad only the right hand side. */
 
 func timeproc (input string)(output string) {
 	if len(input) == 10 {
@@ -181,11 +219,12 @@ func loadass() {
 	for _, y := range loadedass.Styles.Body {
 		id := y.Name
 		family := y.Fontname
-		align := "center"
+		align := locproc(y.Alignment)
 		size := "100%"
 		z := createstyle(id,  align, family, size )
 		styles = append(styles, z)
 	}
+	
 
 }
 
@@ -206,7 +245,7 @@ func main () {
 		outpath = strings.Replace(inpath, "ass", "xml", -1)
 	}
 	setsubtitles(v)
-//	setdefaults(v)
+	setdefaults(v)
 	settt(v)
 	setopts(v)
 	sethead(v)
