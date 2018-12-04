@@ -26,4 +26,4 @@ jobs:
       - run: GOOS=darwin GOARCH=amd64 go build gass2ttml.go
       - run: mv gass2ttml gass2ttml_darwin
       - run: GOOS=linux GOARCH=amd64 go build gass2ttml.go
-      - run mv gass2ttml gass2ttml_linux_amd64
+      - run: mv gass2ttml gass2ttml_linux_amd64
